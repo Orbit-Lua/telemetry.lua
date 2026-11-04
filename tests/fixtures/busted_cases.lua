@@ -1,0 +1,11 @@
+describe("outer", function()
+  describe("inner", function()
+    it("passes", function()
+      assert.is_true(true)
+    end)
+  end)
+
+  it("fails", function()
+    assert.equal(1, 2, "fixture failure message")
+  end)
+end)
