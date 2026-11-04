@@ -16,6 +16,7 @@ M.poll_interval = 50
 ---@field event fun(event: Telemetry.Event) Receives each child event.
 ---@field poll fun() Runs at each wait interval.
 ---@field cancelled? fun(): boolean Returns true to stop the run, as after Ctrl-C.
+---@field spawned? fun(process?: vim.SystemObj) Receives the running process, and nil after it exits.
 
 ---@class Telemetry.Capture
 ---@field lines string[] Output lines in arrival order.
@@ -164,12 +165,16 @@ function M.run(suite, observer)
     wait.completed = out
   end)
 
+  local spawned = observer.spawned or function() end
+
   if ok then
+    spawned(process)
     await(process, wait, suite.timeout or M.default_timeout, function()
       drain(capture, observer)
       observer.poll()
       return observer.cancelled ~= nil and observer.cancelled()
     end)
+    spawned(nil)
   else
     capture.lines[1] = tostring(process)
   end

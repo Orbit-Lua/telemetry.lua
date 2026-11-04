@@ -45,7 +45,7 @@ Run it:
 nvim --headless --clean -l scripts/test.lua
 ```
 
-`telemetry.exit` exits with 0 when each suite passes, 130 after Ctrl-C, and 1 in all other cases.
+`telemetry.exit` exits with 0 when each suite passes, and 1 otherwise. On Ctrl-C, telemetry stops the running suite and restores the cursor. The exit code is then nonzero.
 
 ### Report each test
 

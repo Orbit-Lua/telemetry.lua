@@ -91,13 +91,42 @@ local function watch_interrupt()
   end
 end
 
+---@class Telemetry.Running
+---@field process? vim.SystemObj Process of the running suite.
+
+-- Neovim may end the process itself on Ctrl-C ("Caught deadly signal").
+-- It still runs VimLeavePre, so the hook stops the running child and
+-- restores the terminal. Returns a function that removes the hook.
+---@param view Telemetry.View
+---@param running Telemetry.Running
+---@return fun() remove
+local function guard_exit(view, running)
+  local group = vim.api.nvim_create_augroup("telemetry.run", { clear = true })
+
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = function()
+      if running.process then
+        pcall(running.process.kill, running.process, "sigkill")
+      end
+
+      view.abort()
+    end,
+  })
+
+  return function()
+    vim.api.nvim_del_augroup_by_id(group)
+  end
+end
+
 ---@param spec Telemetry.Spec
 ---@param view Telemetry.View
 ---@param state Telemetry.State
 ---@param cancelled fun(): boolean
+---@param running Telemetry.Running
 ---@return Telemetry.SuiteResult[] results
 ---@return boolean interrupted
-local function run_suites(spec, view, state, cancelled)
+local function run_suites(spec, view, state, cancelled, running)
   local results = {}
 
   ---@type Telemetry.Observer
@@ -109,6 +138,9 @@ local function run_suites(spec, view, state, cancelled)
       view.update(state)
     end,
     cancelled = cancelled,
+    spawned = function(process)
+      running.process = process
+    end,
   }
 
   for _, suite in ipairs(spec.suites) do
@@ -139,10 +171,14 @@ function M.run(spec)
   local view = create_view(M.resolve_mode(spec, out), out)
   local state = progress.new(spec.title, #spec.suites)
   local cancelled, stop_watch = watch_interrupt()
+  ---@type Telemetry.Running
+  local running = {}
+  local remove_guard = guard_exit(view, running)
 
   local ok, results, interrupted =
-    xpcall(run_suites, debug.traceback, spec, view, state, cancelled)
+    xpcall(run_suites, debug.traceback, spec, view, state, cancelled, running)
   stop_watch()
+  remove_guard()
 
   if not ok then
     view.abort()
@@ -170,7 +206,9 @@ function M.run(spec)
   return result
 end
 
--- Exits the process: 0 when every suite passed, 130 after Ctrl-C, else 1.
+-- Exits the process: 0 when every suite passed, else 1. A run that telemetry
+-- itself stopped after Ctrl-C exits with 130. Neovim can also end the process
+-- on Ctrl-C before this runs; see guard_exit.
 ---@param result Telemetry.Result
 function M.exit(result)
   if result.interrupted then

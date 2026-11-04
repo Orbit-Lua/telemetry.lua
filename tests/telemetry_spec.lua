@@ -19,7 +19,55 @@ local function run_exit_fixture(mode)
     :wait(30000)
 end
 
+-- Ends a parent run early and reports whether its child outlived it.
+---@param how "quit"|"signal"
+---@return vim.SystemCompleted result
+---@return boolean survived True when the child wrote its marker file.
+local function leave_during_run(how)
+  local marker = vim.fn.tempname()
+  local process = vim.system({
+    vim.v.progpath,
+    "--headless",
+    "-u",
+    "NONE",
+    "-l",
+    repository .. "/tests/fixtures/leave.lua",
+    how,
+    marker,
+  }, { env = { TELEMETRY_REPOSITORY = repository }, text = true })
+
+  if how == "signal" then
+    vim.wait(1000)
+    process:kill("sigint")
+  end
+
+  local result = process:wait(10000)
+  vim.wait(2500)
+
+  local survived = vim.fn.filereadable(marker) == 1
+  vim.fn.delete(marker)
+  return result, survived
+end
+
 describe("telemetry", function()
+  it("stops the child and restores the cursor when Neovim exits", function()
+    local result, survived = leave_during_run("quit")
+
+    assert.is_false(survived)
+    assert.truthy(result.stdout:find("\27[?25h", 1, true), result.stdout)
+  end)
+
+  -- Windows has no SIGINT delivery to one process; the user checks Ctrl-C.
+  if vim.fn.has("win32") == 0 then
+    it("stops the child and restores the cursor after SIGINT", function()
+      local result, survived = leave_during_run("signal")
+
+      assert.is_false(survived)
+      assert.are_not.equal(0, result.code)
+      assert.truthy(result.stdout:find("\27[?25h", 1, true), result.stdout)
+    end)
+  end
+
   it("exits 0 when every suite passes and 1 otherwise", function()
     local passed = run_exit_fixture("pass")
     local failed = run_exit_fixture("fail")

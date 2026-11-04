@@ -27,6 +27,14 @@ local modes = {
     vim.uv.sleep(10000)
   end,
 
+  -- Writes a file after two seconds, unless the runner stops it first.
+  late = function()
+    io.stdout:write("started\n")
+    io.stdout:flush()
+    vim.uv.sleep(2000)
+    vim.fn.writefile({ "survived" }, vim.env.TELEMETRY_FIXTURE)
+  end,
+
   environment = function()
     io.stdout:write(vim.env.TELEMETRY_FIXTURE .. "\n")
     io.stdout:write(vim.fs.basename(vim.fn.getcwd()) .. "\n")
