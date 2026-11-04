@@ -83,6 +83,21 @@ describe("runner", function()
     assert.is_true((vim.uv.hrtime() - started) / 1e9 < 5)
   end)
 
+  it("stops the child when the observer cancels the run", function()
+    local observer = recorder()
+    observer.cancelled = function()
+      return true
+    end
+
+    local started = vim.uv.hrtime()
+    local result, interrupted = runner.run(suite("sleep"), observer)
+
+    assert.is_true(interrupted)
+    assert.equal("fail", result.status)
+    assert.equal("interrupted", result.message)
+    assert.is_true((vim.uv.hrtime() - started) / 1e9 < 5)
+  end)
+
   it("applies env and cwd, then runs check", function()
     local seen
     local result = runner.run(

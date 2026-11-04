@@ -41,6 +41,7 @@
 ---@field passed integer Suites with status "pass".
 ---@field failed integer Suites with status "fail" or "timeout".
 ---@field duration number Seconds.
+---@field interrupted boolean True when Ctrl-C stopped the run.
 
 ---@class Telemetry.Event
 ---@field event "test_start"|"test_end"
@@ -53,3 +54,9 @@
 ---@field tty boolean True when the output is an interactive terminal.
 ---@field color boolean True when the output accepts color.
 ---@field close? fun() Releases the output handle.
+
+---@class Telemetry.View
+---@field update fun(state: Telemetry.State) Shows the current progress.
+---@field suite_finished fun(state: Telemetry.State, result: Telemetry.SuiteResult)
+---@field finish fun(state: Telemetry.State, result: Telemetry.Result)
+---@field abort fun() Restores the terminal after an error.

@@ -15,6 +15,7 @@ M.poll_interval = 50
 ---@class Telemetry.Observer
 ---@field event fun(event: Telemetry.Event) Receives each child event.
 ---@field poll fun() Runs at each wait interval.
+---@field cancelled? fun(): boolean Returns true to stop the run, as after Ctrl-C.
 
 ---@class Telemetry.Capture
 ---@field lines string[] Output lines in arrival order.
@@ -105,7 +106,7 @@ end
 ---@param process vim.SystemObj
 ---@param wait Telemetry.Wait
 ---@param timeout integer
----@param serve fun()
+---@param serve fun(): boolean Serves the observer; returns true to cancel.
 local function await(process, wait, timeout, serve)
   local deadline = vim.uv.now() + timeout
 
@@ -115,9 +116,9 @@ local function await(process, wait, timeout, serve)
 
   while not wait.completed do
     local _, status = vim.wait(M.poll_interval, completed)
-    serve()
+    local cancelled = serve()
 
-    if status == -2 then
+    if status == -2 or cancelled then
       wait.interrupted = true
     elseif vim.uv.now() >= deadline then
       wait.timed_out = true
@@ -167,6 +168,7 @@ function M.run(suite, observer)
     await(process, wait, suite.timeout or M.default_timeout, function()
       drain(capture, observer)
       observer.poll()
+      return observer.cancelled ~= nil and observer.cancelled()
     end)
   else
     capture.lines[1] = tostring(process)
