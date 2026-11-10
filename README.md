@@ -2,7 +2,7 @@
 
 Run Lua test suites as child processes and watch them in one fixed terminal view, inside Neovim or with luv.
 
-[![Validate telemetry](https://github.com/Orbit-Lua/telemetry.lua/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/Orbit-Lua/telemetry.lua/actions/workflows/validate.yml) [![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
+[![Validate telemetry](https://github.com/Orbit-Lua/telemetry.lua/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/Orbit-Lua/telemetry.lua/actions/workflows/validate.yml) [![Release](https://img.shields.io/github/v/release/Orbit-Lua/telemetry.lua)](https://github.com/Orbit-Lua/telemetry.lua/releases/latest) [![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
 
 On an interactive terminal, telemetry draws a progress bar, the running suite and test, and colored counts. The view does not scroll. The output of a failed suite prints above the view.
 
