@@ -96,14 +96,16 @@ function M.run(spec)
   local mode = M.resolve_mode(spec, out, host.getenv)
   local view = require("telemetry.view." .. mode).new(out, host.getenv)
   local state = progress.new(spec.title, #spec.suites, host.clock)
+  -- The guard stays until the view finishes. A Ctrl-C before that point
+  -- must still restore the cursor that the live view hides.
   local remove_guard = host.guard(view.abort)
 
   local ok, results, interrupted = xpcall(function()
     return run_suites(spec, view, state, host)
   end, debug.traceback)
-  remove_guard()
 
   if not ok then
+    remove_guard()
     view.abort()
     close(out)
     error(results, 0)
@@ -121,6 +123,7 @@ function M.run(spec)
   }
 
   view.finish(state, result)
+  remove_guard()
   close(out)
   return result
 end
