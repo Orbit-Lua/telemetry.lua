@@ -1,4 +1,4 @@
-name: Release telemetry
+name: Release
 
 on:
   push:

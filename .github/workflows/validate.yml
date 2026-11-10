@@ -1,4 +1,4 @@
-name: Validate telemetry
+name: Validate
 
 on:
   push:
