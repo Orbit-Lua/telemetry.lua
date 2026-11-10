@@ -28,13 +28,30 @@ Linux and Windows are equal targets.
 
 ## Interface
 
-- Consumers clone the latest `main` without a pinned commit. Each push to `main` reaches them at once.
-- Keep `telemetry.run`, `telemetry.exit`, the suite fields, the event lines and the busted adapter backward compatible.
+- Consumers pin the commit of a release tag. A push to `main` reaches no consumer until it updates its pin.
+- Keep `telemetry.run`, `telemetry.exit`, the spec and suite fields, the event lines, `telemetry.event` and the busted adapter backward compatible.
+- Treat every other module as private. Consumers must not require it.
 - Before a breaking interface change, update each consumer in the same plan.
+
+## Hosts
+
+- Keep the core free of `vim`. Only `lua/telemetry/host/nvim.lua` and the Neovim test glue may use it.
+- Reach processes, time, the terminal and Ctrl-C only through the host interface in `lua/telemetry/types.lua`.
+- Only queue data in libuv callbacks. They can run in a fast context, where most Neovim calls fail.
+- Deliver output to the sink from the host's wait loop.
+- Stop a suite's whole process group on a timeout, a cancel and a host exit. Use the routine of `execute` for each case.
+- Under Neovim, block in `VimLeavePre` through the kill grace period. A uv timer cannot fire after Neovim exits.
+- Do not wait for pipe EOF in the exit guard. A grandchild outside the group can hold the pipes.
 
 ## Code
 
-- Only queue data in `vim.system` callbacks. They run in a fast event context, where most `vim.fn` and `vim.api` calls fail.
+- Load the core under LuaJIT and Lua 5.1 to 5.5:
+  - Use no `goto`, `utf8` library, `//` or bit operators.
+  - Use `table.unpack or unpack`.
+  - Wrap each `xpcall` body in a closure. Pass no extra arguments to `xpcall`.
+  - Do not assign to a for-loop variable.
+  - Format a number with `%d` only after `math.floor`. luv returns floats under Lua 5.3+.
+- Wrap `assert` in parentheses inside a table constructor. Otherwise the message becomes a second item.
 - Keep the plain view free of escape sequences. Remove them from child output too.
 - Fit each live frame line in the terminal width minus one column. A wrapped line breaks the cursor movement.
 - Keep each function body at 60 lines or fewer, nesting at 4 levels or fewer and each file at 400 lines or fewer.
@@ -42,7 +59,7 @@ Linux and Windows are equal targets.
 
 ## Platforms
 
-- Build paths with `/`, which Neovim accepts on Windows.
+- Build paths with `/`, which Neovim and libuv accept on Windows.
 - Keep just recipes valid under Unix `sh` and native Windows `cmd.exe`.
 
 ## Tests
@@ -53,7 +70,12 @@ Linux and Windows are equal targets.
 - Keep throwaway tests out of the repo unless they meet the bar above.
 - Pin each test dependency in `scripts/deps.lua` to a commit that exists on its remote.
 - Run `just deps` once, then `just all` before you finish.
-- Test the views on the fake terminal in `tests/helpers.lua`, not on the real output.
+- Run `just test-core <interpreter>` for each installed interpreter: `luajit`, `lua5.1`, `lua5.4` and `lua5.5`.
+- Run `just test-hosts luajit` with luv before you change a host.
+- Put specs that run on the fake host in `tests/core/`. They must run under every interpreter.
+- Put specs that need real processes in `tests/host/`, and Plenary specs in `tests/nvim/`.
+- Test the views on the fake terminal in `tests/support/fake.lua`, not on the real output.
+- Change `tests/support/frames.lua` only for an intended change of the view output.
 
 ## CI
 
@@ -98,3 +120,4 @@ Linux and Windows are equal targets.
      2. Keep commands, paths and code unchanged.
      3. Use the natural word order of the target language.
 - Document each public type in `lua/telemetry/types.lua`. Update the README tables when a public field changes.
+- Record each user-visible change in `CHANGELOG.md`.
