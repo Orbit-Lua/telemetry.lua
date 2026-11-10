@@ -1,8 +1,8 @@
-name: Validate telemetry.nvim
+name: Validate telemetry
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
   workflow_dispatch:
 
@@ -19,7 +19,7 @@ env:
 
 jobs:
   validate:
-    name: Validate telemetry on ${{ matrix.os }}
+    name: Validate with Neovim on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -32,26 +32,17 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
-      - name: Install baseline Neovim
-        run: |
-          $name = if ($IsWindows) { 'nvim-win64' } else { 'nvim-linux-x86_64' }
-          $extension = if ($IsWindows) { '.zip' } else { '.tar.gz' }
-          $archive = Join-Path $env:RUNNER_TEMP ($name + $extension)
-          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/$env:NEOVIM_VERSION/$name$extension" -OutFile $archive
-          if ($IsWindows) {
-            Expand-Archive -LiteralPath $archive -DestinationPath $env:RUNNER_TEMP
-          } else {
-            tar -C $env:RUNNER_TEMP -xzf $archive
-            if ($LASTEXITCODE -ne 0) { throw 'Neovim extraction failed' }
-          }
-          Join-Path $env:RUNNER_TEMP "$name/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - name: Install Neovim
+        uses: ./.github/actions/neovim
+        with:
+          version: ${{ env.NEOVIM_VERSION }}
 
       - name: Install just
-        uses: extractions/setup-just@v4
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
 
       - name: Install StyLua
         run: |
@@ -91,5 +82,74 @@ jobs:
       - name: Clone the pinned test dependency
         run: just deps
 
-      - name: Check Lua and run all specs
+      - name: Check the Lua files and run every spec group
         run: just all
+
+  # The core specs run under each interpreter on the fake host. The host
+  # specs run the luv host on real processes where luv is available.
+  # Install recipe on Linux: leafo/gh-actions-lua builds the interpreter
+  # from source, leafo/gh-actions-luarocks adds LuaRocks, and `luarocks
+  # install luv` builds luv with its bundled libuv through CMake.
+  # Install recipe on Windows: gh-actions-luarocks has no Windows support, so
+  # the runner's MSYS2 installs LuaJIT and libluv. libluv.dll exports
+  # luaopen_luv, so a copy named luv.dll loads as the luv module.
+  interpreters:
+    name: Test with ${{ matrix.lua }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, lua: luajit, interpreter: luajit, luv: true }
+          - { os: ubuntu-latest, lua: "5.4", interpreter: lua, luv: true }
+          - { os: ubuntu-latest, lua: "5.1", interpreter: lua, luv: false }
+          - { os: ubuntu-latest, lua: "5.5", interpreter: lua, luv: false }
+          - { os: windows-latest, lua: luajit, interpreter: luajit, luv: true, msys2: true }
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Neovim to run the core suites
+        uses: ./.github/actions/neovim
+        with:
+          version: ${{ env.NEOVIM_VERSION }}
+
+      - name: Install just
+        uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+
+      - name: Install ${{ matrix.lua }}
+        if: ${{ !matrix.msys2 }}
+        uses: leafo/gh-actions-lua@32909a2dea0a48c433aec79e7fcd31b4cd55800f # v13.1.0
+        with:
+          luaVersion: ${{ matrix.lua }}
+
+      - name: Install LuaRocks
+        if: ${{ matrix.luv && !matrix.msys2 }}
+        uses: leafo/gh-actions-luarocks@1c4a92caecc8f6850f673cbadfd57b3e555417ce # v6.1.1
+
+      - name: Install luv
+        if: ${{ matrix.luv && !matrix.msys2 }}
+        run: luarocks install luv 1.52.1-0
+
+      - name: Install LuaJIT and luv from MSYS2
+        if: matrix.msys2
+        shell: pwsh
+        run: |
+          C:\msys64\usr\bin\pacman.exe -Sy --noconfirm --needed mingw-w64-ucrt-x86_64-luajit mingw-w64-ucrt-x86_64-libluv
+          if ($LASTEXITCODE -ne 0) { throw 'MSYS2 package install failed' }
+          $modules = Join-Path $env:RUNNER_TEMP 'lua-modules'
+          New-Item -ItemType Directory -Path $modules -Force | Out-Null
+          Copy-Item 'C:\msys64\ucrt64\bin\libluv.dll' (Join-Path $modules 'luv.dll')
+          'C:\msys64\ucrt64\bin' | Out-File -FilePath $env:GITHUB_PATH -Append
+          "LUA_CPATH=$modules\?.dll;;" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Run the core specs under ${{ matrix.lua }}
+        run: just test-core ${{ matrix.interpreter }}
+
+      - name: Run the host specs on the luv host
+        if: matrix.luv
+        run: just test-hosts ${{ matrix.interpreter }}

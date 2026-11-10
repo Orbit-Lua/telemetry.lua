@@ -1,0 +1,25 @@
+name: Install Neovim
+description: Download the Neovim release and add its bin directory to PATH.
+inputs:
+  version:
+    description: Neovim release tag.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Download and extract Neovim
+      shell: pwsh
+      env:
+        NEOVIM_VERSION: ${{ inputs.version }}
+      run: |
+        $name = if ($IsWindows) { 'nvim-win64' } else { 'nvim-linux-x86_64' }
+        $extension = if ($IsWindows) { '.zip' } else { '.tar.gz' }
+        $archive = Join-Path $env:RUNNER_TEMP ($name + $extension)
+        Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/$env:NEOVIM_VERSION/$name$extension" -OutFile $archive
+        if ($IsWindows) {
+          Expand-Archive -LiteralPath $archive -DestinationPath $env:RUNNER_TEMP
+        } else {
+          tar -C $env:RUNNER_TEMP -xzf $archive
+          if ($LASTEXITCODE -ne 0) { throw 'Neovim extraction failed' }
+        }
+        Join-Path $env:RUNNER_TEMP "$name/bin" | Out-File -FilePath $env:GITHUB_PATH -Append
