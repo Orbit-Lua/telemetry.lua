@@ -9,6 +9,8 @@ local M = {}
 
 local installed = false
 
+local unpack_stack = table.unpack or unpack
+
 ---@param busted table Plenary busted module.
 ---@param stack string[] Description path of the running block.
 local function wrap_describe(busted, stack)
@@ -31,8 +33,9 @@ local function wrap_it(busted, stack)
   local original = busted.it
 
   busted.it = function(desc, body)
-    local name =
-      table.concat(vim.list_extend(vim.list_slice(stack), { desc }), " ")
+    local path = { unpack_stack(stack) }
+    path[#path + 1] = desc
+    local name = table.concat(path, " ")
     local passed = false
 
     event.start(name)

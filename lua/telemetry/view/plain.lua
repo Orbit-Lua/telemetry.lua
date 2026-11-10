@@ -16,7 +16,7 @@ end
 ---@param out Telemetry.Terminal
 ---@return Telemetry.View
 function M.new(out)
-  local github = vim.env.GITHUB_ACTIONS == "true"
+  local github = os.getenv("GITHUB_ACTIONS") == "true"
 
   local function suite_finished(_, result)
     write_lines(out, { report.suite_line(out, result) })

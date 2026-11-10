@@ -8,7 +8,7 @@ local M = {}
 
 ---@return boolean
 function M.enabled()
-  return vim.env.TELEMETRY_EVENTS == "1"
+  return os.getenv("TELEMETRY_EVENTS") == "1"
 end
 
 ---@param event Telemetry.Event
@@ -40,7 +40,9 @@ end
 ---@return string? err Error message with traceback.
 function M.test(name, body)
   M.start(name)
-  local ok, err = xpcall(body, debug.traceback)
+  local ok, err = xpcall(function()
+    body()
+  end, debug.traceback)
   M.finish(name, ok and "pass" or "fail")
 
   return ok, err

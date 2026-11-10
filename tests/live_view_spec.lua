@@ -1,12 +1,12 @@
 local helpers = require("tests.helpers")
 local live = require("telemetry.view.live")
 local progress = require("telemetry.state")
-local terminal = require("telemetry.terminal")
+
 
 ---@param text string
 ---@return string[]
 local function screen_lines(text)
-  local plain = terminal.strip(text)
+  local plain = require("telemetry.text").strip(text)
   return vim.split(plain, "\n", { trimempty = true })
 end
 
@@ -51,7 +51,7 @@ describe("live view", function()
     local mark = #out.writes
     view.suite_finished(state, result)
 
-    local text = terminal.strip(table.concat(out.writes, "", mark + 1))
+    local text = require("telemetry.text").strip(table.concat(out.writes, "", mark + 1))
     local failure = text:find("FAIL tests/example_spec.lua", 1, true)
     local output = text:find("assertion output", 1, true)
     local frame = text:find("test ", output, true)

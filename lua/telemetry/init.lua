@@ -7,36 +7,12 @@
 local progress = require("telemetry.state")
 local runner = require("telemetry.runner")
 local terminal = require("telemetry.terminal")
+local validate = require("telemetry.validate")
 
 local M = {}
 
----@type table<Telemetry.Mode, true>
-local modes = { auto = true, live = true, plain = true }
-
 -- Exit code after Ctrl-C, as in a shell: 128 plus SIGINT.
 M.interrupted_code = 130
-
----@param spec Telemetry.Spec
-local function validate(spec)
-  vim.validate("spec", spec, "table")
-  vim.validate("spec.title", spec.title, "string")
-  vim.validate("spec.suites", spec.suites, function(suites)
-    return type(suites) == "table" and #suites > 0
-  end, "a non-empty list")
-  vim.validate("spec.mode", spec.mode, function(mode)
-    return mode == nil or modes[mode] == true
-  end, "auto, live or plain")
-
-  for index, suite in ipairs(spec.suites) do
-    local path = string.format("spec.suites[%d]", index)
-    vim.validate(path .. ".name", suite.name, "string")
-    vim.validate(path .. ".argv", suite.argv, "table")
-    vim.validate(path .. ".cwd", suite.cwd, "string", true)
-    vim.validate(path .. ".env", suite.env, "table", true)
-    vim.validate(path .. ".timeout", suite.timeout, "number", true)
-    vim.validate(path .. ".check", suite.check, "function", true)
-  end
-end
 
 -- TELEMETRY_MODE overrides the spec. The auto mode draws the live view only
 -- on an interactive terminal outside CI.
@@ -44,14 +20,14 @@ end
 ---@param out Telemetry.Terminal
 ---@return "live"|"plain"
 function M.resolve_mode(spec, out)
-  local mode = vim.env.TELEMETRY_MODE
+  local mode = os.getenv("TELEMETRY_MODE")
 
-  if not modes[mode] then
+  if not validate.modes[mode] then
     mode = spec.mode or "auto"
   end
 
   if mode == "auto" then
-    local ci = vim.env.CI == "true" or vim.env.GITHUB_ACTIONS == "true"
+    local ci = os.getenv("CI") == "true" or os.getenv("GITHUB_ACTIONS") == "true"
     return (out.tty and not ci) and "live" or "plain"
   end
 
@@ -165,7 +141,7 @@ end
 ---@param spec Telemetry.Spec
 ---@return Telemetry.Result
 function M.run(spec)
-  validate(spec)
+  validate.spec(spec)
 
   local out = spec.terminal or terminal.stdout()
   local view = create_view(M.resolve_mode(spec, out), out)
@@ -175,8 +151,9 @@ function M.run(spec)
   local running = {}
   local remove_guard = guard_exit(view, running)
 
-  local ok, results, interrupted =
-    xpcall(run_suites, debug.traceback, spec, view, state, cancelled, running)
+  local ok, results, interrupted = xpcall(function()
+    return run_suites(spec, view, state, cancelled, running)
+  end, debug.traceback)
   stop_watch()
   remove_guard()
 

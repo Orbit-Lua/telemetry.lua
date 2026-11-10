@@ -1,6 +1,6 @@
 -- Text blocks that both views print: suite lines, failure details and the
 -- final summary. Each function returns lines without newlines.
-local terminal = require("telemetry.terminal")
+local text = require("telemetry.text")
 
 local M = {}
 
@@ -18,9 +18,9 @@ function M.suite_line(out, result)
   local label = labels[result.status]
   local line = string.format(
     "%s %s (%s)",
-    terminal.paint(out, label.style, label.label),
+    text.paint(out, label.style, label.label),
     result.name,
-    terminal.duration(result.duration)
+    text.duration(result.duration)
   )
 
   if result.status ~= "pass" and result.code ~= 0 then
@@ -40,18 +40,18 @@ end
 ---@param result Telemetry.SuiteResult
 ---@return string[]
 function M.failure_lines(out, result)
-  local output = out.color and result.output or terminal.strip(result.output)
-  local lines = output == "" and {} or vim.split(output, "\n")
+  local output = out.color and result.output or text.strip(result.output)
+  local lines = output == "" and {} or text.lines(output)
 
   for _, test in ipairs(result.tests) do
     if test.status ~= "pass" then
-      local mark = terminal.paint(out, "red", test.status)
+      local mark = text.paint(out, "red", test.status)
       lines[#lines + 1] = string.format("  %s: %s", mark, test.name)
     end
   end
 
   if result.message then
-    lines[#lines + 1] = terminal.paint(out, "red", result.message)
+    lines[#lines + 1] = text.paint(out, "red", result.message)
   end
 
   return lines
@@ -64,7 +64,7 @@ end
 function M.summary_lines(out, state, result)
   local style = result.failed == 0 and "green" or "red"
   local lines = {
-    terminal.paint(
+    text.paint(
       out,
       style,
       string.format(
@@ -72,7 +72,7 @@ function M.summary_lines(out, state, result)
         result.passed,
         #result.suites,
         result.title,
-        terminal.duration(result.duration)
+        text.duration(result.duration)
       )
     ),
   }
@@ -95,7 +95,7 @@ function M.summary_lines(out, state, result)
   end
 
   if result.interrupted then
-    lines[#lines + 1] = terminal.paint(out, "yellow", "Interrupted.")
+    lines[#lines + 1] = text.paint(out, "yellow", "Interrupted.")
   end
 
   return lines

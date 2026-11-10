@@ -4,6 +4,8 @@
 -- separator byte, the word "telemetry", a space and a JSON object. The runner
 -- removes these lines from the captured output. Every function here is safe
 -- in a fast event context.
+local json = require("telemetry.json")
+
 local M = {}
 
 M.prefix = "\30telemetry "
@@ -17,7 +19,7 @@ local statuses = { pass = true, fail = true, error = true }
 ---@param event Telemetry.Event
 ---@return string line Encoded line with its newline.
 function M.encode(event)
-  return M.prefix .. vim.json.encode(event) .. "\n"
+  return M.prefix .. json.encode(event) .. "\n"
 end
 
 ---@param value any
@@ -47,9 +49,9 @@ function M.decode(line)
     return nil
   end
 
-  local ok, value = pcall(vim.json.decode, line:sub(#M.prefix + 1))
+  local value = json.decode(line:sub(#M.prefix + 1))
 
-  if ok and is_event(value) then
+  if is_event(value) then
     return value
   end
 

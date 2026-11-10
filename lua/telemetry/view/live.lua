@@ -4,7 +4,7 @@
 -- does not scroll. Failure details print above the frame and stay there.
 local progress = require("telemetry.state")
 local report = require("telemetry.view.report")
-local terminal = require("telemetry.terminal")
+local text = require("telemetry.text")
 
 local M = {}
 
@@ -30,9 +30,9 @@ local function progress_segments(state, width)
     " %d/%d  %s",
     state.done,
     state.total,
-    terminal.duration(progress.elapsed(state))
+    text.duration(progress.elapsed(state))
   )
-  local room = width - vim.fn.strdisplaywidth(state.title .. " " .. tail)
+  local room = width - text.width(state.title .. " " .. tail)
   local bar = math.max(math.min(room, M.max_bar_width), 0)
   local filled = state.total == 0 and bar
     or math.floor(bar * state.done / state.total)
@@ -58,9 +58,9 @@ local function count_segments(state)
 
   local tests = state.tests
   if tests.passed + tests.failed > 0 then
-    local text =
+    local counts =
       string.format("   tests %d passed, %d failed", tests.passed, tests.failed)
-    segments[#segments + 1] = { text, "dim" }
+    segments[#segments + 1] = { counts, "dim" }
   end
 
   return segments
@@ -74,20 +74,20 @@ end
 local function frame(out, state)
   local width = math.max(out.width() - 1, 1)
   local lines = {
-    terminal.fit(out, progress_segments(state, width), width),
+    text.fit(out, progress_segments(state, width), width),
   }
 
   if state.suite then
     local segments = { { "  " }, { "▶ " .. state.suite, "cyan" } }
-    lines[#lines + 1] = terminal.fit(out, segments, width)
+    lines[#lines + 1] = text.fit(out, segments, width)
   end
 
   if state.test then
     local segments = { { "    " }, { state.test, "dim" } }
-    lines[#lines + 1] = terminal.fit(out, segments, width)
+    lines[#lines + 1] = text.fit(out, segments, width)
   end
 
-  lines[#lines + 1] = terminal.fit(out, count_segments(state), width)
+  lines[#lines + 1] = text.fit(out, count_segments(state), width)
   return lines
 end
 
