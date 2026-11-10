@@ -37,6 +37,29 @@ t.test("strip removes CSI, OSC and charset escape sequences", function()
   )
 end)
 
+t.test(
+  "strip removes UTF-8 encoded C1 sequences and keeps other text",
+  function()
+    local csi, osc, st = "\194\155", "\194\157", "\194\156"
+    t.equal(
+      "red title link \194\169 caf\195\169",
+      text.strip(
+        csi
+          .. "31mred"
+          .. csi
+          .. "0m "
+          .. osc
+          .. "0;t\7title "
+          .. osc
+          .. "8;;u"
+          .. st
+          .. "link"
+          .. "\194\133 \194\169 caf\195\169"
+      )
+    )
+  end
+)
+
 t.test("lines keeps empty lines", function()
   t.same({ "a", "", "b", "" }, text.lines("a\n\nb\n"))
 end)

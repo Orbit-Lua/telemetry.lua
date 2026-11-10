@@ -241,6 +241,8 @@ function M.paint(terminal, style, text)
 end
 
 -- Removes escape sequences, such as Plenary's colors and terminal links.
+-- Some terminals also act on the UTF-8 encoded C1 controls U+0080 to U+009F,
+-- such as CSI (U+009B, "\194\155") and OSC (U+009D, "\194\157").
 ---@param text string
 ---@return string
 function M.strip(text)
@@ -250,6 +252,10 @@ function M.strip(text)
     :gsub("\27%[[\48-\63]*[\32-\47]*[\64-\126]", "") -- CSI
     :gsub("\27[\32-\47]*[\48-\126]", "") -- other escapes, such as ESC ( B
     :gsub("\27", "") -- a bare ESC, such as one cut off at a line end
+    :gsub("\194\157[^\7\194]*\7", "") -- C1 OSC ended by BEL
+    :gsub("\194\157[^\7\194]*\194\156", "") -- C1 OSC ended by C1 ST
+    :gsub("\194\155[\48-\63]*[\32-\47]*[\64-\126]", "") -- C1 CSI
+    :gsub("\194[\128-\159]", "") -- other C1 controls
   return plain
 end
 
