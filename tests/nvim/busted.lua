@@ -1,5 +1,5 @@
 -- Run one Plenary spec file in this process and report its tests.
--- Usage: nvim --headless -u tests/minimal_init.lua -l tests/busted.lua <spec>
+-- Usage: nvim --headless -u tests/nvim/minimal_init.lua -l tests/nvim/busted.lua <spec>
 assert(arg[1], "provide a spec file")
 
 local busted = require("plenary.busted")

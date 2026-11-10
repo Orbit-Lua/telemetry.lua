@@ -1,18 +1,21 @@
--- Output targets for the views.
+-- The standard output terminal on libuv.
 local M = {}
 
 M.default_width = 80
 
 ---@return boolean
 local function color_allowed()
-  return vim.env.NO_COLOR == nil or vim.env.NO_COLOR == ""
+  local value = os.getenv("NO_COLOR")
+  return value == nil or value == ""
 end
 
 -- Writes through a libuv TTY handle. libuv translates VT sequences on a
 -- Windows console without VT mode, so both platforms share one path.
+---@param uv table
+---@param loop Telemetry.UvLoop
 ---@return Telemetry.Terminal
-local function tty_terminal()
-  local tty = assert(vim.uv.new_tty(1, false))
+local function tty_terminal(uv, loop)
+  local tty = assert(uv.new_tty(1, false))
   local pending = 0
 
   local function write(text)
@@ -29,7 +32,7 @@ local function tty_terminal()
 
   -- Writes are asynchronous; wait for them so that an exit loses no text.
   local function close()
-    vim.wait(1000, function()
+    loop.wait(1000, function()
       return pending == 0
     end)
     tty:close()
@@ -60,10 +63,12 @@ local function stream_terminal()
 end
 
 -- Returns the terminal of standard output.
+---@param uv table libuv binding.
+---@param loop Telemetry.UvLoop
 ---@return Telemetry.Terminal
-function M.stdout()
-  if vim.uv.guess_handle(1) == "tty" then
-    return tty_terminal()
+function M.new(uv, loop)
+  if uv.guess_handle(1) == "tty" then
+    return tty_terminal(uv, loop)
   end
 
   return stream_terminal()

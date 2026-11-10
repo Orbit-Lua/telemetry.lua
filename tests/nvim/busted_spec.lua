@@ -12,10 +12,10 @@ local function run_fixture(env)
       "-i",
       "NONE",
       "-u",
-      "tests/minimal_init.lua",
+      "tests/nvim/minimal_init.lua",
       "-l",
-      "tests/fixtures/busted_child.lua",
-      "tests/fixtures/busted_cases.lua",
+      "tests/nvim/fixtures/busted_child.lua",
+      "tests/nvim/fixtures/busted_cases.lua",
     }, { env = env, text = true })
     :wait(30000)
 

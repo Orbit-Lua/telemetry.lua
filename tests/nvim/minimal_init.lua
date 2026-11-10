@@ -18,7 +18,13 @@ assert(vim.fn.isdirectory(plenary) == 1, "run `just deps` first: " .. plenary)
 vim.opt.runtimepath:append(plenary)
 vim.cmd("runtime plugin/plenary.vim")
 
-package.path = repository .. "/?.lua;" .. package.path
+package.path = repository
+  .. "/?.lua;"
+  .. repository
+  .. "/lua/?.lua;"
+  .. repository
+  .. "/lua/?/init.lua;"
+  .. package.path
 
 vim.api.nvim_create_autocmd("VimLeavePre", {
   callback = function()

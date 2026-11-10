@@ -3,6 +3,8 @@
 
 ---@alias Telemetry.Mode "auto"|"live"|"plain"
 
+---@alias Telemetry.HostName "auto"|"nvim"|"luv"
+
 ---@alias Telemetry.SuiteStatus "pass"|"fail"|"timeout"
 
 ---@alias Telemetry.TestStatus "pass"|"fail"|"error"
@@ -20,6 +22,7 @@
 ---@field suites Telemetry.Suite[] Suites in run order.
 ---@field mode? Telemetry.Mode View selection. Default "auto".
 ---@field terminal? Telemetry.Terminal Output target. Default: standard output.
+---@field host? Telemetry.HostName Host selection. Overrides TELEMETRY_HOST. Default "auto".
 
 ---@class Telemetry.TestResult
 ---@field name string Full test description.
@@ -42,6 +45,7 @@
 ---@field failed integer Suites with status "fail" or "timeout".
 ---@field duration number Seconds.
 ---@field interrupted boolean True when Ctrl-C stopped the run.
+---@field host "nvim"|"luv" Host that ran the suites.
 
 ---@class Telemetry.Event
 ---@field event "test_start"|"test_end"
@@ -60,3 +64,34 @@
 ---@field suite_finished fun(state: Telemetry.State, result: Telemetry.SuiteResult)
 ---@field finish fun(state: Telemetry.State, result: Telemetry.Result)
 ---@field abort fun() Restores the terminal after an error.
+
+-- Host interface. The core reaches processes, time, the terminal and
+-- interrupts only through a host. These types are private.
+
+-- guard: on host exit, the host stops the running process group with the
+-- routine of `execute` and then calls on_abort.
+---@class Telemetry.Host
+---@field name "nvim"|"luv"
+---@field getenv fun(name: string): string?
+---@field clock fun(): number Seconds from an arbitrary start.
+---@field terminal fun(): Telemetry.Terminal Standard output; close() drains pending writes.
+---@field execute fun(request: Telemetry.ProcessRequest, sink: Telemetry.ProcessSink): Telemetry.ProcessExit
+---@field guard fun(on_abort: fun()): fun() Watches Ctrl-C and host exit; returns the remover.
+---@field interrupted fun(): boolean True after a stop signal since the guard started.
+
+---@class Telemetry.ProcessRequest
+---@field argv string[]
+---@field cwd? string
+---@field env table<string, string> Added variables. The host merges them over the inherited environment.
+---@field timeout integer Milliseconds.
+
+---@class Telemetry.ProcessSink
+---@field output fun(stream: "stdout"|"stderr", chunk: string) Always called from a normal context.
+---@field poll fun(): boolean Runs at least every poll interval; returns true to cancel.
+
+---@class Telemetry.ProcessExit
+---@field code integer -1 when the process did not start or did not report a code.
+---@field signal integer
+---@field timed_out boolean
+---@field interrupted boolean
+---@field error? string Spawn failure.

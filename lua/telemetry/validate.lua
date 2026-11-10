@@ -12,7 +12,10 @@ M.hosts = { auto = true, nvim = true, luv = true }
 ---@param expected string
 ---@param value any
 local function fail(path, expected, value)
-  error(string.format("%s: expected %s, got %s", path, expected, type(value)), 0)
+  error(
+    string.format("%s: expected %s, got %s", path, expected, type(value)),
+    0
+  )
 end
 
 ---@param path string
@@ -33,7 +36,10 @@ end
 ---@param expected string
 local function check_choice(path, value, allowed, expected)
   if value ~= nil and not allowed[value] then
-    error(string.format("%s: expected %s, got %s", path, expected, tostring(value)), 0)
+    error(
+      string.format("%s: expected %s, got %s", path, expected, tostring(value)),
+      0
+    )
   end
 end
 

@@ -18,9 +18,19 @@ fmt-check:
 lint:
     luacheck {{ lua_paths }}
 
-# Run the specs, or the specs whose path contains the pattern
+nvim := "nvim --headless --clean -i NONE -l"
+
+# Run every spec group under Neovim, or the specs whose path contains the pattern
 test pattern="":
-    nvim --headless --clean -i NONE -l scripts/test.lua {{ pattern }}
+    {{ nvim }} scripts/test.lua all "{{ pattern }}"
+
+# Run the core specs on the fake host under an interpreter: nvim, luajit, lua5.1, lua5.4 or lua5.5
+test-core interpreter="nvim":
+    {{ nvim }} scripts/test.lua core "" {{ if interpreter == "nvim" { "" } else { interpreter } }}
+
+# Run the host specs on real processes: nvim, or luajit or lua5.4 with luv
+test-hosts interpreter="nvim":
+    {{ if interpreter == "nvim" { nvim } else { interpreter } }} scripts/test.lua host
 
 # Clone the pinned Plenary test dependency into .deps/
 deps:

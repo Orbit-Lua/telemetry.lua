@@ -15,12 +15,14 @@ local M = {}
 ---@field tests Telemetry.TestCounts Tests across all suites.
 ---@field suite? string Running suite.
 ---@field test? string Running test of the running suite.
----@field started integer Start time from `vim.uv.hrtime()`.
+---@field clock fun(): number Host clock in seconds.
+---@field started number Start time from the clock.
 
 ---@param title string
 ---@param total integer
+---@param clock fun(): number Host clock in seconds.
 ---@return Telemetry.State
-function M.new(title, total)
+function M.new(title, total, clock)
   return {
     title = title,
     total = total,
@@ -28,7 +30,8 @@ function M.new(title, total)
     passed = 0,
     failed = 0,
     tests = { passed = 0, failed = 0 },
-    started = vim.uv.hrtime(),
+    clock = clock,
+    started = clock(),
   }
 end
 
@@ -73,7 +76,7 @@ end
 ---@param state Telemetry.State
 ---@return number seconds
 function M.elapsed(state)
-  return (vim.uv.hrtime() - state.started) / 1e9
+  return state.clock() - state.started
 end
 
 return M

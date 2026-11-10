@@ -14,9 +14,10 @@ local function write_lines(out, lines)
 end
 
 ---@param out Telemetry.Terminal
+---@param getenv fun(name: string): string?
 ---@return Telemetry.View
-function M.new(out)
-  local github = os.getenv("GITHUB_ACTIONS") == "true"
+function M.new(out, getenv)
+  local github = getenv("GITHUB_ACTIONS") == "true"
 
   local function suite_finished(_, result)
     write_lines(out, { report.suite_line(out, result) })

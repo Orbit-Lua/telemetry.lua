@@ -33,7 +33,12 @@ local function scalar(value)
     return quote(value)
   elseif kind == "boolean" then
     return tostring(value)
-  elseif kind == "number" and value == value and value ~= math.huge and value ~= -math.huge then
+  elseif
+    kind == "number"
+    and value == value
+    and value ~= math.huge
+    and value ~= -math.huge
+  then
     if value == math.floor(value) and math.abs(value) < 2 ^ 53 then
       return string.format("%d", value)
     end
@@ -92,7 +97,16 @@ end
 ---@field text string
 ---@field at integer Position of the next character.
 
-local simple = { ['"'] = '"', ["\\"] = "\\", ["/"] = "/", b = "\b", f = "\f", n = "\n", r = "\r", t = "\t" }
+local simple = {
+  ['"'] = '"',
+  ["\\"] = "\\",
+  ["/"] = "/",
+  b = "\b",
+  f = "\f",
+  n = "\n",
+  r = "\r",
+  t = "\t",
+}
 
 ---@param reader Telemetry.JsonReader
 ---@return integer

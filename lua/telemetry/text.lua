@@ -159,7 +159,10 @@ local function characters(text)
     end
 
     local byte = text:byte(at)
-    local length = byte >= 0xF0 and 4 or byte >= 0xE0 and 3 or byte >= 0xC0 and 2 or 1
+    local length = byte >= 0xF0 and 4
+      or byte >= 0xE0 and 3
+      or byte >= 0xC0 and 2
+      or 1
     local code = byte % lead_bits[length]
 
     -- A stray continuation byte or an overlong lead is not a character.
