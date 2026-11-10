@@ -22,7 +22,7 @@ The Plenary adapter also needs [plenary.nvim](https://github.com/nvim-lua/plenar
 telemetry is a test tool, not an editor plugin. Clone a release tag next to your other test dependencies:
 
 ```sh
-git clone --depth 1 --branch 0.1.0 https://github.com/Orbit-Lua/telemetry.lua.git .deps/telemetry.lua
+git clone --depth 1 --branch 0.1.1 https://github.com/Orbit-Lua/telemetry.lua.git .deps/telemetry.lua
 ```
 
 ## Usage
