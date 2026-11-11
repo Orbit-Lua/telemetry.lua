@@ -70,6 +70,12 @@ if host.name == "nvim" then
 
       assert_stopped(pidfile)
       t.contains(stdout, live.show_cursor)
+      local running = (assert(stdout:find("▶ quit", 1, true)))
+      local diagnostic = (assert(stdout:find("out", running, true)))
+      local restored = (assert(stdout:find(live.show_cursor, diagnostic, true)))
+      t.truthy(running < diagnostic and diagnostic < restored)
+      t.equal(1, select(2, stdout:gsub("out", "")))
+      t.contains(stdout:sub(running, diagnostic), "\27[3F\27[JFAIL fail")
     end
   )
 end

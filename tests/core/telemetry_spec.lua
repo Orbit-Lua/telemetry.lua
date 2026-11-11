@@ -54,14 +54,17 @@ end)
 
 t.test("run stops after an interrupted suite", function()
   use_host({
-    stop = function()
+    stop = function(_, sink)
+      sink.output("stderr", "interrupted diagnostic\n")
       return { code = -1, interrupted = true }
     end,
     ok = quiet.ok,
   })
+  local out = fake.terminal({ color = false })
   local result = telemetry.run({
     title = "test",
-    terminal = fake.terminal({ tty = false }),
+    mode = "live",
+    terminal = out,
     suites = {
       { name = "one", argv = { "stop" } },
       { name = "two", argv = { "ok" } },
@@ -70,6 +73,9 @@ t.test("run stops after an interrupted suite", function()
 
   t.equal(true, result.interrupted)
   t.equal(1, #result.suites)
+  t.equal(1, select(2, out.text():gsub("interrupted diagnostic", "")))
+  t.contains(out.text(), "interrupted diagnostic\ninterrupted\n0 of 1")
+  t.equal(live.show_cursor, out.writes[#out.writes])
 end)
 
 t.test(
@@ -149,29 +155,123 @@ t.test("numbers in argv and env become strings, as in vim.system", function()
 end)
 
 t.test("run restores the cursor when a suite check raises an error", function()
-  local host = use_host({ ok = quiet.ok })
-  local out = fake.terminal()
-  local err = t.raises(function()
+  for _, reject_diagnostic in ipairs({ false, true }) do
+    local host = use_host({
+      ok = quiet.ok,
+      bad = function(_, sink)
+        sink.output("stderr", "earlier diagnostic\n")
+        return { code = 1 }
+      end,
+    })
+    local out = fake.terminal()
+    local write = out.write
+    out.write = function(value)
+      if reject_diagnostic and value:find("earlier diagnostic", 1, true) then
+        error("abort sink failure")
+      end
+      write(value)
+    end
+    local err = t.raises(function()
+      telemetry.run({
+        title = "test",
+        mode = "live",
+        terminal = out,
+        suites = {
+          { name = "earlier failure", argv = { "bad" } },
+          {
+            name = "check error",
+            argv = { "ok" },
+            check = function()
+              error("broken check")
+            end,
+          },
+        },
+      })
+    end)
+
+    t.contains(err, "broken check")
+    if not reject_diagnostic then
+      t.equal(1, select(2, out.text():gsub("earlier diagnostic", "")))
+    end
+    t.equal(live.show_cursor, out.writes[#out.writes])
+    t.equal(0, host.guarded)
+  end
+end)
+
+t.test(
+  "run retains completion order and defers diagnostics past later suites",
+  function()
+    local out = fake.terminal({ color = false })
+    use_host({
+      bad = function(_, sink)
+        sink.output("stderr", "deferred diagnostic\n")
+        return { code = 1 }
+      end,
+      ok = function(_, sink)
+        t.contains(out.text(), "FAIL first (0.0s) exit=1")
+        t.equal(nil, out.text():find("deferred diagnostic", 1, true))
+        sink.output("stdout", "hidden success output\n")
+      end,
+    })
     telemetry.run({
       title = "test",
       mode = "live",
       terminal = out,
       suites = {
-        {
-          name = "check error",
-          argv = { "ok" },
-          check = function()
-            error("broken check")
-          end,
-        },
+        { name = "first", argv = { "bad" } },
+        { name = "second", argv = { "ok" } },
       },
     })
-  end)
+    local output = out.text()
+    local completed = (assert(output:find("ok second (0.0s)", 1, true)))
+    local details = (assert(output:find("deferred diagnostic", 1, true)))
+    local summary = (assert(output:find("1 of 2 test suites passed", 1, true)))
+    t.truthy(completed < details and details < summary)
+    t.equal(nil, output:find("hidden success output", 1, true))
+  end
+)
 
-  t.contains(err, "broken check")
-  t.equal(live.show_cursor, out.writes[#out.writes])
-  t.equal(0, host.guarded)
-end)
+t.test(
+  "diagnostic write errors preserve cleanup and the original error",
+  function()
+    local host = use_host({
+      bad = function(_, sink)
+        sink.output("stderr", "diagnostic\n")
+        return { code = 1 }
+      end,
+    })
+    local out = fake.terminal({ color = false })
+    local write = out.write
+    local attempts, closed = 0, false
+    out.write = function(value)
+      if value:find("diagnostic", 1, true) then
+        attempts = attempts + 1
+        if attempts == 1 then
+          error("diagnostic sink failure")
+        end
+      end
+      write(value)
+    end
+    out.close = function()
+      closed = true
+      error("secondary close failure")
+    end
+    local err = t.raises(function()
+      telemetry.run({
+        title = "test",
+        mode = "live",
+        terminal = out,
+        suites = { { name = "broken", argv = { "bad" } } },
+      })
+    end)
+    t.equal(1, attempts, "cleanup must not repeat the failed diagnostic write")
+    t.contains(err, "diagnostic sink failure")
+    t.equal(nil, err:find("secondary close failure", 1, true))
+    t.equal(0, host.guarded)
+    t.equal(true, closed)
+    t.equal(live.show_cursor, out.writes[#out.writes])
+  end
+)
 
 t.test("run rejects an invalid spec with the field path", function()
   use_host({})

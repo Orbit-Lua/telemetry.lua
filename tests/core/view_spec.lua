@@ -98,14 +98,130 @@ local function render_plain(github)
   return out.text()
 end
 
-t.test("the live view writes the frames of the previous release", function()
-  t.equal(frames.live_40_color, render_live(40, true), "40 columns with color")
-  t.equal(
-    frames.live_40_mono,
-    render_live(40, false),
-    "40 columns without color"
+t.test(
+  "the live view writes the expected completion and failure frames",
+  function()
+    t.equal(
+      frames.live_40_color,
+      render_live(40, true),
+      "40 columns with color"
+    )
+    t.equal(
+      frames.live_40_mono,
+      render_live(40, false),
+      "40 columns without color"
+    )
+    t.equal(frames.live_24_color, render_live(24, true), "24 columns")
+  end
+)
+
+t.test("completed suite lines stay above subsequent live frames", function()
+  local out = fake.terminal({ color = false })
+  local view = live.new(out)
+  local state = running_state(3)
+  view.update(state)
+
+  for _, status in ipairs({ "pass", "fail", "timeout" }) do
+    local before = #out.writes
+    view.suite_finished(
+      state,
+      fake.suite_result({ name = status, status = status })
+    )
+    t.equal("\27[4F\27[J", out.writes[before + 1])
+    local label = status == "pass" and "ok" or status:upper()
+    t.equal(label .. " " .. status .. " (1.2s)\n", out.writes[before + 2])
+    local drawn = out.writes[before + 3]
+    t.contains(drawn, "▶ tests/中文名稱_spec.lua")
+    view.update(state)
+    t.equal("\27[4F\27[J", out.writes[before + 4])
+    t.equal(
+      drawn,
+      out.writes[before + 5],
+      "only the four frame lines are replaced"
+    )
+  end
+end)
+
+t.test(
+  "live failures are labeled and deferred until before the summary",
+  function()
+    local out = fake.terminal({ color = false })
+    local view = live.new(out)
+    local state = running_state(3)
+    local results = {
+      fake.suite_result({
+        name = "broken",
+        status = "fail",
+        code = 1,
+        output = "first diagnostic",
+        tests = { { name = "bad case", status = "fail" } },
+      }),
+      fake.suite_result({
+        name = "slow",
+        status = "timeout",
+        code = -1,
+        output = "second diagnostic",
+        message = "timed out",
+      }),
+      fake.suite_result({ name = "good", output = "hidden success output" }),
+    }
+    for _, result in ipairs(results) do
+      view.suite_finished(state, result)
+    end
+    local before = out.text()
+    t.equal(nil, before:find("diagnostic", 1, true))
+    t.equal(nil, before:find("bad case", 1, true))
+    t.equal(nil, before:find("timed out", 1, true))
+    view.finish(state, {
+      title = "test",
+      suites = results,
+      passed = 1,
+      failed = 2,
+      duration = 4,
+      interrupted = false,
+      host = "nvim",
+    })
+    local final = out.text():sub(#before + 1)
+    t.contains(
+      final,
+      "\27[4F\27[JFAIL broken (1.2s) exit=1\nfirst diagnostic\n  fail: bad case\n"
+    )
+    t.contains(
+      final,
+      "TIMEOUT slow (1.2s) exit=-1\nsecond diagnostic\ntimed out\n1 of 3"
+    )
+    t.equal(nil, out.text():find("hidden success output", 1, true))
+    t.equal(1, select(2, out.text():gsub("first diagnostic", "")))
+    t.equal(1, select(2, out.text():gsub("second diagnostic", "")))
+  end
+)
+
+t.test("abort emits deferred failures once across repeated cleanup", function()
+  local out = fake.terminal({ color = false })
+  local view = live.new(out)
+  local state = running_state(1)
+  view.suite_finished(
+    state,
+    fake.suite_result({ status = "fail", output = "diagnostic" })
   )
-  t.equal(frames.live_24_color, render_live(24, true), "24 columns")
+  t.equal(nil, out.text():find("diagnostic", 1, true))
+  view.abort()
+  t.contains(
+    out.text(),
+    "\27[4F\27[JFAIL tests/example_spec.lua (1.2s)\ndiagnostic\n"
+  )
+  view.abort()
+  view.finish(state, {
+    title = "test",
+    suites = {},
+    passed = 0,
+    failed = 0,
+    duration = 0,
+    interrupted = true,
+    host = "nvim",
+  })
+  t.equal(1, select(2, out.text():gsub("diagnostic", "")))
+  t.equal(live.show_cursor, out.writes[#out.writes])
 end)
 
 t.test("the plain view writes the lines of the previous release", function()

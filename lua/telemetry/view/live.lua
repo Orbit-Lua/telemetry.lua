@@ -1,7 +1,7 @@
 -- Fixed view for interactive terminals. A small frame at the bottom shows
 -- the progress bar, the running suite and test, and the counts. Each redraw
--- moves the cursor to the frame start and erases the frame, so the screen
--- does not scroll. Failure details print above the frame and stay there.
+-- replaces only the frame. Completed suite lines stay above it. Failure
+-- details print when the run finishes or aborts.
 local progress = require("telemetry.state")
 local report = require("telemetry.view.report")
 local text = require("telemetry.text")
@@ -92,22 +92,60 @@ local function frame(out, state)
 end
 
 ---@param out Telemetry.Terminal
+---@param lines string[]
+local function write_lines(out, lines)
+  if #lines > 0 then
+    out.write(table.concat(lines, "\n") .. "\n")
+  end
+end
+
+---@param out Telemetry.Terminal
+---@return fun(result: Telemetry.SuiteResult) defer
+---@return fun() emit
+local function failure_reporter(out)
+  ---@type Telemetry.SuiteResult[]
+  local pending = {}
+  local next_failure = 1
+
+  return function(result)
+    pending[#pending + 1] = result
+  end, function()
+    while next_failure <= #pending do
+      local result = pending[next_failure]
+      -- Consume before writing: abort must not repeat a partially written block.
+      next_failure = next_failure + 1
+      write_lines(out, { report.suite_line(out, result) })
+      write_lines(out, report.failure_lines(out, result))
+    end
+    pending, next_failure = {}, 1
+  end
+end
+
+---@param out Telemetry.Terminal
+---@param clear fun()
+---@param emit fun()
+local function abort(out, clear, emit)
+  local ok, err = pcall(function()
+    clear()
+    emit()
+  end)
+  out.write(M.show_cursor)
+  if not ok then
+    error(err, 0)
+  end
+end
+
+---@param out Telemetry.Terminal
 ---@return Telemetry.View
 function M.new(out)
   local height = 0
   local hidden = false
+  local defer, emit = failure_reporter(out)
 
   local function clear()
     if height > 0 then
       out.write(cursor_up(height) .. M.erase_below)
       height = 0
-    end
-  end
-
-  ---@param lines string[]
-  local function write_lines(lines)
-    if #lines > 0 then
-      out.write(table.concat(lines, "\n") .. "\n")
     end
   end
 
@@ -120,28 +158,27 @@ function M.new(out)
 
     local lines = frame(out, state)
     clear()
-    write_lines(lines)
+    write_lines(out, lines)
     height = #lines
   end
 
+  ---@param state Telemetry.State
+  ---@param result Telemetry.SuiteResult
   local function suite_finished(state, result)
     if result.status ~= "pass" then
-      clear()
-      write_lines({ report.suite_line(out, result) })
-      write_lines(report.failure_lines(out, result))
+      defer(result)
     end
-
+    clear()
+    write_lines(out, { report.suite_line(out, result) })
     draw(state)
   end
 
+  ---@param state Telemetry.State
+  ---@param result Telemetry.Result
   local function finish(state, result)
     clear()
-    write_lines(report.summary_lines(out, state, result))
-    out.write(M.show_cursor)
-  end
-
-  local function abort()
-    clear()
+    emit()
+    write_lines(out, report.summary_lines(out, state, result))
     out.write(M.show_cursor)
   end
 
@@ -149,7 +186,9 @@ function M.new(out)
     update = draw,
     suite_finished = suite_finished,
     finish = finish,
-    abort = abort,
+    abort = function()
+      abort(out, clear, emit)
+    end,
   }
 end
 

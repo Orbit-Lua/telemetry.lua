@@ -84,6 +84,27 @@ local function close(out)
   end
 end
 
+---@param spec Telemetry.Spec
+---@param view Telemetry.View
+---@param state Telemetry.State
+---@param host Telemetry.Host
+---@return Telemetry.Result
+local function run_and_finish(spec, view, state, host)
+  local results, interrupted = run_suites(spec, view, state, host)
+  ---@type Telemetry.Result
+  local result = {
+    title = spec.title,
+    suites = results,
+    passed = state.passed,
+    failed = state.failed,
+    duration = progress.elapsed(state),
+    interrupted = interrupted,
+    host = host.name,
+  }
+  view.finish(state, result)
+  return result
+end
+
 -- Runs the suites in order and reports them. A Lua error restores the
 -- terminal before it propagates.
 ---@param spec Telemetry.Spec
@@ -100,29 +121,18 @@ function M.run(spec)
   -- must still restore the cursor that the live view hides.
   local remove_guard = host.guard(view.abort)
 
-  local ok, results, interrupted = xpcall(function()
-    return run_suites(spec, view, state, host)
+  local ok, result = xpcall(function()
+    return run_and_finish(spec, view, state, host)
   end, debug.traceback)
 
   if not ok then
-    remove_guard()
-    view.abort()
-    close(out)
-    error(results, 0)
+    -- Cleanup failures must not mask the original runner or output error.
+    pcall(remove_guard)
+    pcall(view.abort)
+    pcall(close, out)
+    error(result, 0)
   end
 
-  ---@type Telemetry.Result
-  local result = {
-    title = spec.title,
-    suites = results,
-    passed = state.passed,
-    failed = state.failed,
-    duration = progress.elapsed(state),
-    interrupted = interrupted,
-    host = host.name,
-  }
-
-  view.finish(state, result)
   remove_guard()
   close(out)
   return result

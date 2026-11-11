@@ -4,7 +4,9 @@ Run Lua test suites as child processes and watch them in one fixed terminal view
 
 [![Validate](https://github.com/Orbit-Lua/telemetry.lua/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/Orbit-Lua/telemetry.lua/actions/workflows/validate.yml?query=branch%3Amain) [![Release](https://img.shields.io/github/v/release/Orbit-Lua/telemetry.lua)](https://github.com/Orbit-Lua/telemetry.lua/releases/latest) [![Lua](https://img.shields.io/badge/Lua-5.1%2B-2C2D72?logo=lua&logoColor=white)](https://www.lua.org/)
 
-On an interactive terminal, telemetry draws a progress bar, the running suite and test, and colored counts. The view does not scroll. The output of a failed suite prints above the view.
+On an interactive terminal, telemetry draws a progress bar, the running suite and test, and colored counts. Each completed suite leaves its status, name and duration above the progress view. Only the progress view redraws.
+
+When the run ends, telemetry prints labeled failure details before the summary. On abort, it emits pending failure details and restores the cursor.
 
 On a pipe or in CI, telemetry writes one plain line for each suite and the full output of each failed suite. It writes no color and no cursor control. On GitHub Actions, it folds failure output into log groups and adds error annotations.
 

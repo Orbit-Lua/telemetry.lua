@@ -3,8 +3,9 @@
 --
 -- hold and quit write this runner's pid to <pidfile>.runner and run a suite
 -- whose child and grandchild write their pids to <pidfile>. quit then ends
--- Neovim with `:qa!` during the suite. between sends SIGTERM to this runner
--- from the first suite's check; the second suite would create <file>.
+-- Neovim with `:qa!` during the suite, after a completed failure.
+-- between sends SIGTERM to this runner from the first suite's check;
+-- the second suite would create <file>.
 local interpreter = require("tests.support.interpreter")
 local telemetry = require("telemetry")
 
@@ -47,15 +48,32 @@ if mode == "between" then
   suites.second = { name = "second", argv = process("touch", pidfile) }
 end
 
-if mode == "quit" then
-  vim.defer_fn(function()
-    vim.cmd("qa!")
-  end, 1000)
-end
-
+---@type Telemetry.Spec
 local spec = {
   title = "fixture",
   mode = pidfile and "live" or "plain",
   suites = { (assert(suites[mode], mode)), suites.second },
 }
+if mode == "quit" then
+  -- Synchronous capture tests guard delivery, without depending on TTY draining.
+  local quitting = false
+  spec.terminal = {
+    tty = true,
+    color = false,
+    width = function()
+      return 80
+    end,
+    write = function(value)
+      io.stdout:write(value)
+      io.stdout:flush()
+      if not quitting and value:find("▶ quit", 1, true) then
+        quitting = true
+        vim.defer_fn(function()
+          vim.cmd("qa!")
+        end, 1000)
+      end
+    end,
+  }
+  spec.suites = { suites.fail, suites.quit }
+end
 telemetry.exit(telemetry.run(spec))

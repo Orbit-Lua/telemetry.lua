@@ -1,5 +1,5 @@
--- View output of telemetry 3cd1ad8 (before the host layer) for the states
--- in tests/core/view_spec.lua. The pure views must write the same bytes.
+-- Expected output for the states in tests/core/view_spec.lua. Plain output
+-- stays compatible with telemetry 3cd1ad8, before the host layer.
 return {
   ["live_40_color"] = "\27[?25l\27[1mtest\27[0m \27[31m███████████\27[0m\27[2m░░░░░░░░░░░░\27[0m 2/4  1m15s\
   \27[36m▶ tests/中文名稱_spec.lua\27[0m\
@@ -10,15 +10,16 @@ return {
     \27[2m描述 a 很長的測試名稱 that is far …\27[0m\
   \27[32m1 passed\27[0m  \27[31m1 failed\27[0m\27[2m   tests 3 passed,…\27[0m\
 \27[4F\27[J\27[31mFAIL\27[0m tests/失敗_spec.lua (1m01s) exit=1\
-\27[31mFail\27[0m line\
-second\
-  \27[31merror\27[0m: 壞掉 test\
-\27[31mtimed out\27[0m\
 \27[1mtest\27[0m \27[31m███████████\27[0m\27[2m░░░░░░░░░░░░\27[0m 2/4  1m15s\
   \27[36m▶ tests/中文名稱_spec.lua\27[0m\
     \27[2m描述 a 很長的測試名稱 that is far …\27[0m\
   \27[32m1 passed\27[0m  \27[31m1 failed\27[0m\27[2m   tests 3 passed,…\27[0m\
-\27[4F\27[J\27[31m1 of 2 test suites passed (2m05s).\27[0m\
+\27[4F\27[J\27[31mFAIL\27[0m tests/失敗_spec.lua (1m01s) exit=1\
+\27[31mFail\27[0m line\
+second\
+  \27[31merror\27[0m: 壞掉 test\
+\27[31mtimed out\27[0m\
+\27[31m1 of 2 test suites passed (2m05s).\27[0m\
 Tests: 3 passed, 1 failed.\
 Failed: tests/失敗_spec.lua\
 \27[33mInterrupted.\27[0m\
@@ -32,15 +33,16 @@ Failed: tests/失敗_spec.lua\
     描述 a 很長的測試名稱 that is far …\
   1 passed  1 failed   tests 3 passed,…\
 \27[4F\27[JFAIL tests/失敗_spec.lua (1m01s) exit=1\
-Fail line\
-second\
-  error: 壞掉 test\
-timed out\
 test ███████████░░░░░░░░░░░░ 2/4  1m15s\
   ▶ tests/中文名稱_spec.lua\
     描述 a 很長的測試名稱 that is far …\
   1 passed  1 failed   tests 3 passed,…\
-\27[4F\27[J1 of 2 test suites passed (2m05s).\
+\27[4F\27[JFAIL tests/失敗_spec.lua (1m01s) exit=1\
+Fail line\
+second\
+  error: 壞掉 test\
+timed out\
+1 of 2 test suites passed (2m05s).\
 Tests: 3 passed, 1 failed.\
 Failed: tests/失敗_spec.lua\
 Interrupted.\
@@ -54,15 +56,16 @@ Interrupted.\
     \27[2m描述 a 很長的測試…\27[0m\
   \27[32m1 passed\27[0m  \27[31m1 failed\27[0m\27[2m  …\27[0m\
 \27[4F\27[J\27[31mFAIL\27[0m tests/失敗_spec.lua (1m01s) exit=1\
-\27[31mFail\27[0m line\
-second\
-  \27[31merror\27[0m: 壞掉 test\
-\27[31mtimed out\27[0m\
 \27[1mtest\27[0m \27[31m███\27[0m\27[2m░░░░\27[0m 2/4  1m15s\
   \27[36m▶ tests/中文名稱_spe…\27[0m\
     \27[2m描述 a 很長的測試…\27[0m\
   \27[32m1 passed\27[0m  \27[31m1 failed\27[0m\27[2m  …\27[0m\
-\27[4F\27[J\27[31m1 of 2 test suites passed (2m05s).\27[0m\
+\27[4F\27[J\27[31mFAIL\27[0m tests/失敗_spec.lua (1m01s) exit=1\
+\27[31mFail\27[0m line\
+second\
+  \27[31merror\27[0m: 壞掉 test\
+\27[31mtimed out\27[0m\
+\27[31m1 of 2 test suites passed (2m05s).\27[0m\
 Tests: 3 passed, 1 failed.\
 Failed: tests/失敗_spec.lua\
 \27[33mInterrupted.\27[0m\
